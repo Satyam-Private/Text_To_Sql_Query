@@ -1,0 +1,29 @@
+# Ignore Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore virtual environment
+venv/
+env/
+.venv/
+
+# Ignore environment variables
+.env
+
+# Ignore SQLite database file
+data.db
+
+# Ignore Streamlit cache & logs
+.streamlit/
+*.log
+
+# Ignore Jupyter Notebook checkpoints (if used)
+.ipynb_checkpoints/
+
+# Ignore macOS system files
+.DS_Store
+
+# Ignore VS Code workspace settings
+.vscode/
