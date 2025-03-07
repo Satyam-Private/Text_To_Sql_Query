@@ -6,12 +6,34 @@ import os
 import sqlite3
 import google.generativeai as genai
 
+# Configure Gemini with API key
 genai.configure(api_key=os.getenv('API_KEY'))
+
+# Function to extract schema details
+def get_db_schema(db_path):
+    try:
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        c.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = c.fetchall()
+        schema_info = ""
+        
+        for table in tables:
+            table_name = table[0]
+            c.execute(f"PRAGMA table_info({table_name});")
+            columns = c.fetchall()
+            schema_info += f"Table: {table_name}\nColumns: "
+            schema_info += ", ".join([col[1] for col in columns]) + "\n"
+        
+        conn.close()
+        return schema_info
+    except sqlite3.Error as e:
+        return f"Error fetching schema: {str(e)}"
 
 # Function to interact with Gemini
 def get_gemini_response(question, prompt):
     model = genai.GenerativeModel("gemini-2.0-flash-lite")
-    response = model.generate_content([prompt[0], question])
+    response = model.generate_content([prompt, question])
     sql_query = response.text.strip()  # Extract text properly
     return sql_query.strip("```").strip("sql")
 
@@ -27,61 +49,61 @@ def read_sql_query(sql, db):
     except sqlite3.Error as e:
         return f"Error: {str(e)}"
 
-prompt = [
-    """
-    You are an expert in converting English questions to SQL query! The SQL database is named STUDENT and has the following columns: NAME, CLASS, MARKS. 
-    
-    Examples: 
-    - "How many entries are present?" → `SELECT COUNT(*) FROM STUDENT;`
-    - "Students in class X?" → `SELECT * FROM STUDENT WHERE CLASS = 'X';`
-    - "Top scorer?" → `SELECT NAME FROM STUDENT WHERE MARKS = (SELECT MAX(MARKS) FROM STUDENT);`
-    
-    Convert the following English questions into SQL queries. Return only the SQL query.
-    """
-]
-
-# Enhanced frontend using Streamlit
-st.set_page_config(page_title="SQL Query Generator", page_icon="📊", layout="centered")
+# Streamlit UI
+st.set_page_config(page_title="SQL Query Generator", page_icon="📊", layout="wide")
+st.title("Dynamic SQL Query Generator with Gemini")
 
 # Sidebar with instructions
 st.sidebar.title("Instructions")
 st.sidebar.info("""
-1. **Enter** an English question related to SQL queries.
-2. Click on **Generate Query** to see the generated SQL command.
-3. The query will be executed on the **STUDENT** database.
-4. View the output below for query results.
+1. **Upload** an SQLite database file.
+2. **Enter** a question in natural language.
+3. Click **Generate Query** to see the SQL command.
+4. The query is executed, and results are displayed.
 """)
 
-# Main app title and description
-st.title("Gemini-Powered SQL Query Generator")
-st.markdown("""
-This application uses Google's Gemini model to convert natural language questions into SQL queries.  
-It then executes the generated query on a local **STUDENT** database with columns **NAME**, **CLASS**, and **MARKS**.
-""")
+# File uploader for database
+uploaded_file = st.sidebar.file_uploader("Upload your SQLite database", type=["db", "sqlite"], help="Upload a .db or .sqlite file")
 
-# Input form container
-with st.form("query_form"):
-    question = st.text_input("Enter your question here:")
-    submit = st.form_submit_button("Generate Query")
+db_path = None
+if uploaded_file is not None:
+    db_path = "uploaded_db.db"  # Temporary storage path
+    with open(db_path, "wb") as f:
+        f.write(uploaded_file.read())
+    
+    # Extract schema information
+    schema_info = get_db_schema(db_path)
+    st.sidebar.text_area("Extracted Database Schema:", schema_info, height=150, disabled=True)
+    
+    prompt = f"""
+    You are an expert in converting English questions into SQL queries! The given database schema is:
+    {schema_info}
+    Convert the following English questions into SQL queries. Return only the SQL query.
+    """
 
-if submit:
-    if question.strip():
+    # User input
+    with st.form("query_form"):
+        question = st.text_input("Enter your question here:", help="Type a natural language question about your database")
+        submit = st.form_submit_button("Generate Query")
+
+    if submit and question.strip():
         with st.spinner("Generating SQL query..."):
             sql_query = get_gemini_response(question, prompt)
+        
         st.subheader("Generated SQL Query:")
         st.code(sql_query, language="sql")
         
         with st.spinner("Executing SQL query..."):
-            data = read_sql_query(sql_query, "data.db")
+            data = read_sql_query(sql_query, db_path)
         
         if isinstance(data, str) and "Error" in data:
-            st.error(data)  # Show error message if SQL fails
+            st.error(data)
         else:
             st.subheader("Query Results:")
             if data:
-                for row in data:
-                    st.write(row)
+                st.write("### Results Table:")
+                st.dataframe(data)
             else:
                 st.info("No results found for the query.")
-    else:
-        st.warning("Please enter a valid question.")
+else:
+    st.warning("Please upload a SQLite database to proceed.")
