@@ -1,3 +1,6 @@
+# Dynamic SQL Query Generator
+# Author: Satyam Patil
+
 from dotenv import load_dotenv
 load_dotenv()  # Load environment variables
 
@@ -54,13 +57,20 @@ st.set_page_config(page_title="SQL Query Generator", page_icon="📊", layout="w
 st.title("Dynamic SQL Query Generator with Gemini")
 
 # Sidebar with instructions
-st.sidebar.title("Instructions")
+st.sidebar.title("📌 Instructions")
 st.sidebar.info("""
 1. **Upload** an SQLite database file.
 2. **Enter** a question in natural language.
 3. Click **Generate Query** to see the SQL command.
 4. The query is executed, and results are displayed.
 """)
+
+# Author Info in Sidebar with styling
+st.sidebar.markdown("""
+---
+### 👨‍💻 Author: Satyam Patil
+**[GitHub](https://github.com/Satyam-Private)** | **[LinkedIn](https://www.linkedin.com/in/patilsatyam)**
+""", unsafe_allow_html=True)
 
 # File uploader for database
 uploaded_file = st.sidebar.file_uploader("Upload your SQLite database", type=["db", "sqlite"], help="Upload a .db or .sqlite file")
@@ -73,7 +83,7 @@ if uploaded_file is not None:
     
     # Extract schema information
     schema_info = get_db_schema(db_path)
-    st.sidebar.text_area("Extracted Database Schema:", schema_info, height=150, disabled=True)
+    st.sidebar.text_area("📋 Extracted Database Schema:", schema_info, height=150, disabled=True)
     
     prompt = f"""
     You are an expert in converting English questions into SQL queries! The given database schema is:
@@ -83,14 +93,14 @@ if uploaded_file is not None:
 
     # User input
     with st.form("query_form"):
-        question = st.text_input("Enter your question here:", help="Type a natural language question about your database")
-        submit = st.form_submit_button("Generate Query")
+        question = st.text_input("🔍 Enter your question here:", help="Type a natural language question about your database")
+        submit = st.form_submit_button("🚀 Generate Query")
 
     if submit and question.strip():
         with st.spinner("Generating SQL query..."):
             sql_query = get_gemini_response(question, prompt)
         
-        st.subheader("Generated SQL Query:")
+        st.subheader("📝 Generated SQL Query:")
         st.code(sql_query, language="sql")
         
         with st.spinner("Executing SQL query..."):
@@ -99,11 +109,11 @@ if uploaded_file is not None:
         if isinstance(data, str) and "Error" in data:
             st.error(data)
         else:
-            st.subheader("Query Results:")
+            st.subheader("📊 Query Results:")
             if data:
-                st.write("### Results Table:")
+                st.write("### 📌 Results Table:")
                 st.dataframe(data)
             else:
                 st.info("No results found for the query.")
 else:
-    st.warning("Please upload a SQLite database to proceed.")
+    st.warning("⚠️ Please upload a SQLite database to proceed.")
